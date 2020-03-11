@@ -1,1 +1,0 @@
-This directory is used to store autoconf script files. It should be automatically populated with "autoreconf -i"
