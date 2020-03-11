@@ -1,0 +1,6 @@
+2020-03-11 19:10:07 : Server starting up
+2020-03-11 19:10:11 : IP address is on white list. Accepting connection. IP address is: 127.0.0.1
+2020-03-11 19:10:11 : JMD:: Assigned (clientId=1,N=15,n=15) to slave node 4
+2020-03-11 19:10:11 : JMD:: Sending message: 1|15|15 to slave node 4
+2020-03-11 19:10:14 : Closing connection with client . IP address is :127.0.0.1
+2020-03-11 19:10:14 : JMD:: Error, slave node 4 disconnected. Resetting job (clientId=1,N=15,n=15) back to slave node -1 (for reassignment)
