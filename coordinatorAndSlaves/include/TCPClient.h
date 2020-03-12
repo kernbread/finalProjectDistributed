@@ -40,7 +40,7 @@ private:
 	 struct sockaddr_in server;
 	 bool connClosed = false;
 	 bool connectionBroke = false;
-         bool clientTestMode = false; // used to test setting client IP address to static ip addr
+     bool clientTestMode = false; // used to test setting client IP address to static ip addr
 	 std::chrono::system_clock::time_point lastTimeHeartBeatReceived = std::chrono::system_clock::now();;
 
 	 std::queue<std::string> receivedMessages;

@@ -86,7 +86,7 @@ void TCPClient::handleConnection() {
 			auto message = this->receivedMessages.front();
 			
 			if (sanitizeUserInput(message).compare("") != 0) // only display messages that have data
-				std::cout << std::endl << message;
+				std::cout << "received: " << message << std::endl;
 
 			this->receivedMessages.pop();
 		}
@@ -123,6 +123,8 @@ void TCPClient::receivingThread() {
 		auto response = receiveData();
 
 		// check for heartbeat from server
+		
+		/*
 		std::chrono::system_clock::time_point now = std::chrono::system_clock::now(); // get current time
 		if (response.compare("HEARTBEAT\n") == 0) {
 			this->lastTimeHeartBeatReceived = now;
@@ -131,6 +133,7 @@ void TCPClient::receivingThread() {
 			if (now - this->lastTimeHeartBeatReceived > std::chrono::seconds(8))
 				this->connectionBroke = true; // signal we have a broken connection
 		}
+		*/
 
 		this->mtx1.lock();
 		this->receivedMessages.push(response);
@@ -139,6 +142,7 @@ void TCPClient::receivingThread() {
 }
 
 void TCPClient::sendingThread() {
+	/*
 	while (!connClosed && !connectionBroke) {
 		std::string clientMessage;
 		std::cin >> clientMessage;
@@ -150,6 +154,7 @@ void TCPClient::sendingThread() {
 			break;
 		}
 	}
+	*/
 }
 
 std::string TCPClient::sanitizeUserInput(const std::string& s) {
@@ -174,5 +179,7 @@ std::string TCPClient::sanitizeUserInput(const std::string& s) {
 void TCPClient::closeConn() {
 	close(sockfd);
 }
+
+// Factoring functionality
 
 
