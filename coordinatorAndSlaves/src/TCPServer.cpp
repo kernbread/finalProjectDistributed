@@ -122,11 +122,13 @@ void TCPServer::listenSvr() {
 				mainServerConnId = connection; // remember connection ID of main server
 				std::thread mainServerThread(&TCPServer::mainServerThread, this, connection, ipAddrStr);
 				mainServerThread.detach(); // make thread a daemon
+				log("INFO: connected with main server at " + ipAddrStr);
 			} else { // assume this is a slave node...
 				// start slave node thread
 				std::thread clientThread(&TCPServer::clientThread, this, connection, ipAddrStr);
 				clientThread.detach(); // make thread a daemon
 				this->slaveConns.push_back(connection);
+				log("INFO: connected with slave node at " + ipAddrStr + ":" + std::to_string(port));
 			}
 		}
 	}
@@ -323,15 +325,15 @@ void TCPServer::handleMessage(std::string msg, int conn) {
 		std::string slaveNodeId;
 		std::string clientId;
 		std::string numberToFactorize;
-		std::vector<std::string> primes;
+		std::string primes;
 
 		try {
 			slaveNodeId = splitMessage.at(1);
 			clientId = splitMessage.at(2);
 			numberToFactorize = splitMessage.at(3);
-			primes = convertDelimitedStringToVector(splitMessage.at(4), ',');
+			primes = splitMessage.at(4);
 		} catch (std::exception& e) {
-			log("WARN: Failed to receive POLLARD_RESP. Expected message of format POLLARD_RESP|slaveConnId|clientId|numberToFactorize|prime1,prime2,...,primeN, but got: " + msg);
+			log("WARN: failed to receive POLLARD_RESP. Expected message of format POLLARD_RESP|slaveConnId|clientId|numberToFactorize|prime1,prime2,...,primeN, but got: " + msg);
 			return;
 		}
 
@@ -353,12 +355,24 @@ void TCPServer::handleMessage(std::string msg, int conn) {
 
 			// add record to completed jobs
 			completedJobs.push(std::make_tuple(clientId, numberToFactorize, primes));
-			log("INFO: added (clientId=" + clientId + ",numberToFactorize=" + numberToFactorize + ",primes=" + splitMessage.at(4) + ") to completed jobs.");
+			log("INFO: added (clientId=" + clientId + ",numberToFactorize=" + numberToFactorize + ",primes=" + primes + ") to completed jobs.");
 		} else {
 			jobsMutex.unlock();
 		}
+	} else if (messageType.compare("CANCEL_RESP") == 0) {
+		std::string slaveNodeId;
 
+		try {
+			slaveNodeId = splitMessage.at(1);
+		} catch (std::exception& e) {
+			log("WARN: failed to receive CANCEL_RESP. Expected message of format CANCEL_RESP|slaveConnId, but got: " + msg);
+			return;
+		}
 
+		// mark job as done
+		jobsMutex.lock();
+		setJobToDone(stoi(slaveNodeId));
+		jobsMutex.unlock();
 	} else { // unknown message type
 		log("WARN: Unknown message type in message. Cannot handle! Message was: " + msg);
 	}
@@ -516,6 +530,21 @@ void TCPServer::jmd() {
 }
 
 void TCPServer::cjd() {
+	while (true) {
+		if (!completedJobs.empty()) {
+			auto completedJob = completedJobs.front();
+			completedJobs.pop();
+
+			auto clientId = std::get<0>(completedJob);
+			auto numberToFactorize = std::get<1>(completedJob);
+			auto primes = std::get<2>(completedJob);
+
+			auto messageToSend = "FACTOR_RESP|" + clientId + "|" + numberToFactorize + "|" + primes;
+			sendMessage(mainServerConnId, messageToSend);
+			log("INFO: CJD:: sent message to main server: " + messageToSend);
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(100)); // sleep thread
+	}
 }
 
 
