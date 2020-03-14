@@ -52,8 +52,8 @@ private:
  std::vector<std::tuple<int, int, int, bool, bool>> jobs; // current jobs assigned to slave nodes
  std::mutex jobsMutex; 
 
- // (clientId, numberToFactorize, vector<int> prime factors of numberToFactorize)
- std::queue<std::tuple<std::string, std::string, std::vector<std::string>>> completedJobs; // queue of all jobs that completed and need to be sent to main server
+ // (clientId, numberToFactorize, prime factors of numberToFactorize)
+ std::queue<std::tuple<std::string, std::string, std::string>> completedJobs; // queue of all jobs that completed and need to be sent to main server
 
  sockaddr_in sockaddr;
  Logger logger;
@@ -61,13 +61,13 @@ private:
 
  std::string mainServerIpAddress = "127.0.0.2"; // IP address of main server
  int mainServerConnId = -1; // connection ID to main server
+ bool mainServerAlive = true;
 
  int numberOfJobsPerClientReq = 2; // number of jobs for each client request (TODO: need to change this to be based on the number of slave nodes!!!)
 
  std::mutex m1; // lock for logger
  void log(const char *msg);
  void log(std::string msg);
-
 
  // daemon services
  void jmd(); // job management daemon

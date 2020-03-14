@@ -123,6 +123,7 @@ void TCPServer::listenSvr() {
 				std::thread mainServerThread(&TCPServer::mainServerThread, this, connection, ipAddrStr);
 				mainServerThread.detach(); // make thread a daemon
 				log("INFO: connected with main server at " + ipAddrStr);
+				mainServerAlive = true;
 			} else { // assume this is a slave node...
 				// start slave node thread
 				std::thread clientThread(&TCPServer::clientThread, this, connection, ipAddrStr);
@@ -263,6 +264,7 @@ void TCPServer::mainServerThread(int conn, std::string ipAddrStr) {
 
 		if (message.compare("FAILED") == 0) {  // check if still connected to main server
 			log("WARN: lost connection with main server!");
+			mainServerAlive = false;
 			break;
 		}
 
@@ -540,8 +542,13 @@ void TCPServer::cjd() {
 			auto primes = std::get<2>(completedJob);
 
 			auto messageToSend = "FACTOR_RESP|" + clientId + "|" + numberToFactorize + "|" + primes;
-			sendMessage(mainServerConnId, messageToSend);
-			log("INFO: CJD:: sent message to main server: " + messageToSend);
+
+			if (mainServerAlive) {
+				sendMessage(mainServerConnId, messageToSend);
+				log("INFO: CJD:: sent message to main server: " + messageToSend);
+			} else {
+				completedJobs.push(completedJob); // add job back to queue for resending
+			}
 		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(100)); // sleep thread
 	}
