@@ -36,7 +36,6 @@ public:
    void bindSvr(const char *ip_addr, unsigned short port);
    void listenSvr();
    void shutdown();
-   void heartbeatThread(int conn);
    bool checkIfIPWhiteListed(std::string ipAddr);
    void sendMessage(int conn, std::string msg);
    std::string receiveMessage(int conn);
@@ -49,7 +48,7 @@ private:
  // once all outbound jobs to this conn are reset, conn id removed from this vector.
 
  // (slaveNodeId, clientId, numberToFactorize, done, cancelled)) 
- std::vector<std::tuple<int, int, int, bool, bool>> jobs; // current jobs assigned to slave nodes
+ std::vector<std::tuple<int, int, std::string, bool, bool>> jobs; // current jobs assigned to slave nodes
  std::mutex jobsMutex; 
 
  // (clientId, numberToFactorize, prime factors of numberToFactorize)
@@ -78,7 +77,7 @@ private:
  void markSlaveConnAsDead(int connId); // when we lose connection with a slave node, call this method
  bool checkIfJobCancelled(int inSlaveNodeId); // checks whether a job assigned to a slave node is cannceled 
  void setJobToDone(int inSlaveNodeId); // sets a job with slaveNodeId to done
- std::vector<int> setJobsToCancelled(int inSlaveNodeId, int inClientId, int inNumberToFactorize); // for any job that is not inSlaveNodeId, if it has the same (clientId, numberToFactorize) as inSlaveNodeId, set job to cancelled
+ std::vector<int> setJobsToCancelled(int inSlaveNodeId, int inClientId, std::string inNumberToFactorize); // for any job that is not inSlaveNodeId, if it has the same (clientId, numberToFactorize) as inSlaveNodeId, set job to cancelled
 };
 
 

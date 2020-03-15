@@ -158,27 +158,6 @@ bool TCPServer::checkIfIPWhiteListed(std::string ipAddr) {
 }
 
 /*
- * heartbeatThread - sends a heartbeat to the client every 3 seconds to ensure stable connection.
- *
- *   Params: conn - the fd of the connection.
- *
- *   Throws: runtime_error if unable to send heart beat.
- */
-void TCPServer::heartbeatThread(int conn) {
-	std::string hbStr = "HEARTBEAT\n";
-
-	while (true) {
-		std::this_thread::sleep_for(std::chrono::seconds(3));
-
-		try {
-			send(conn, hbStr.c_str(), hbStr.length(), 0);
-		} catch (std::exception& e) {
-			throw std::runtime_error("Failed to send heartbeat to client!");
-		}
-	}
-}
-
-/*
  * sendMessage: interface to send messages to a client.
  *
  *   Params: conn - connection fd
@@ -231,10 +210,6 @@ void TCPServer::clientThread(int conn, std::string ipAddrStr) {
 	Client client;
 	client.conn = conn;
 	client.ipAddress = ipAddrStr;
-
-	// TODO: start heartbeat thread with client
-	//std::thread hbThread(&TCPServer::heartbeatThread, this, conn);
-	//hbThread.detach();
 
 	// wait for messages from client
 	while (true) {
@@ -320,7 +295,7 @@ void TCPServer::handleMessage(std::string msg, int conn) {
 
 		// add jobs to jobs vector for request
 		for (int i=0; i < numberOfJobsPerClientReq; i++)
-			jobs.push_back(std::make_tuple(-1, stoi(clientId), stoi(numberToFactorize), false, false));
+			jobs.push_back(std::make_tuple(-1, stoi(clientId), numberToFactorize, false, false));
 		log("INFO: added " + std::to_string(numberOfJobsPerClientReq) + " of following job: (-1, " + clientId + ", " + numberToFactorize + ", " + "false, false)");
 
 	} else if (messageType.compare("POLLARD_RESP") == 0) {
@@ -345,7 +320,7 @@ void TCPServer::handleMessage(std::string msg, int conn) {
 			setJobToDone(stoi(slaveNodeId)); 
 
 			// set all other jobs with this (clientId, numberToFactorize) pair to cancelled
-			auto cancelledSlaveNodeIds = setJobsToCancelled(stoi(slaveNodeId), stoi(clientId), stoi(numberToFactorize));
+			auto cancelledSlaveNodeIds = setJobsToCancelled(stoi(slaveNodeId), stoi(clientId), numberToFactorize);
 			jobsMutex.unlock(); // releasing lock as soon as possible to avoid bottleneck
 
 			// send cancellation requests to cancelled nodes
@@ -459,7 +434,7 @@ void TCPServer::setJobToDone(int inSlaveNodeId) {
 /*
 	This method should be mutexed with jobsMutex before calling!
 */
-std::vector<int> TCPServer::setJobsToCancelled(int inSlaveNodeId, int inClientId, int inNumberToFactorize) {
+std::vector<int> TCPServer::setJobsToCancelled(int inSlaveNodeId, int inClientId, std::string inNumberToFactorize) {
 	std::vector<int> cancelledSlaveNodeIds;
 	for (auto& job : jobs) {
 		auto slaveNodeId = std::get<0>(job);
@@ -468,7 +443,7 @@ std::vector<int> TCPServer::setJobsToCancelled(int inSlaveNodeId, int inClientId
 
 		if (slaveNodeId != inSlaveNodeId && clientId == inClientId && numberToFactorize == inNumberToFactorize) {
 			std::get<4>(job) = true; // set job to cancelled
-			log("DEBUG: cancelling job (slaveNodeId=" + std::to_string(slaveNodeId) + ",clientId=" + std::to_string(clientId) + ",numberToFactorize=" + std::to_string(numberToFactorize) + ") ");
+			log("DEBUG: cancelling job (slaveNodeId=" + std::to_string(slaveNodeId) + ",clientId=" + std::to_string(clientId) + ",numberToFactorize=" + numberToFactorize + ") ");
 			cancelledSlaveNodeIds.push_back(slaveNodeId);
 		}
 	}
@@ -501,7 +476,7 @@ void TCPServer::jmd() {
 				// if there are available slave nodes, assign one to this job
 				if (availableSlaveNodes.size() > 0) {
 					auto newSlaveNodeId = availableSlaveNodes[0];
-					auto logStr = "INFO: JMD :: assigned (clientId=" + std::to_string(clientId) + ", numberToFactorize=" + std::to_string(numberToFactorize) + ", done=" + std::to_string(done) + ", cancelled=" + std::to_string(cancelled) + ") to slave node " + std::to_string(newSlaveNodeId);
+					auto logStr = "INFO: JMD :: assigned (clientId=" + std::to_string(clientId) + ", numberToFactorize=" + numberToFactorize + ", done=" + std::to_string(done) + ", cancelled=" + std::to_string(cancelled) + ") to slave node " + std::to_string(newSlaveNodeId);
 					log(logStr);
 
 					jobsMutex.lock();
@@ -509,12 +484,12 @@ void TCPServer::jmd() {
 					jobsMutex.unlock();
 
 					// send job to slave node!
-					auto messageToSend = "POLLARD_REQ|" + std::to_string(newSlaveNodeId) + "|" + std::to_string(clientId) + "|" + std::to_string(numberToFactorize);
+					auto messageToSend = "POLLARD_REQ|" + std::to_string(newSlaveNodeId) + "|" + std::to_string(clientId) + "|" + numberToFactorize;
 					log("INFO: JMD :: sending message: " + messageToSend + " to slave node " + std::to_string(newSlaveNodeId));
 					sendMessage(newSlaveNodeId, messageToSend);
 				}
 			} else if (std::count(deadSlaveConns.begin(), deadSlaveConns.end(), slaveNodeId)) { // check if this job is assigned to a dead slave node
-				auto logStr = "WARN: JMD:: slave node " + std::to_string(slaveNodeId) + " disconnected before we received a response. Resetting job (clientId=" + std::to_string(clientId) + ", numberToFactorize=" + std::to_string(numberToFactorize) + ", done=" + std::to_string(done) + ", cancelled=" + std::to_string(cancelled) + ") back to slave node -1 (for reassignment)";
+				auto logStr = "WARN: JMD:: slave node " + std::to_string(slaveNodeId) + " disconnected before we received a response. Resetting job (clientId=" + std::to_string(clientId) + ", numberToFactorize=" + numberToFactorize + ", done=" + std::to_string(done) + ", cancelled=" + std::to_string(cancelled) + ") back to slave node -1 (for reassignment)";
 				log(logStr);
 
 				jobsMutex.lock();
@@ -524,7 +499,7 @@ void TCPServer::jmd() {
 				jobsMutex.lock();
 				jobs.erase(std::remove(jobs.begin(), jobs.end(), job));
 				jobsMutex.unlock();
-				log("DEBUG: JMD :: removed job (clientId=" + std::to_string(clientId) + ", numberToFactorize=" + std::to_string(numberToFactorize) + ", done=" + std::to_string(done) + ", cancelled=" + std::to_string(cancelled) + ") from jobs. Adding to completed jobs.");
+				log("DEBUG: JMD :: removed job (clientId=" + std::to_string(clientId) + ", numberToFactorize=" + numberToFactorize + ", done=" + std::to_string(done) + ", cancelled=" + std::to_string(cancelled) + ") from jobs. Adding to completed jobs.");
 			}
 		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(100)); // sleep thread
