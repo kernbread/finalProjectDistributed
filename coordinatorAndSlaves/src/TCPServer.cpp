@@ -368,6 +368,9 @@ std::string TCPServer::sanitizeUserInput(const std::string& s) {
 	// influence from https://www.techiedelight.com/trim-string-cpp-remove-leading-trailing-spaces/
 	std::string leftTrimmed = std::regex_replace(s, std::regex("^\\s+"), std::string(""));
 	std::string leftAndRightTrimmed = std::regex_replace(leftTrimmed, std::regex("\\s+$"), std::string(""));
+
+	// remove new line characters from string
+	std::string leftAndRightTrimmedAndNoNewLine = std::regex_replace(leftAndRightTrimmed, std::regex("\\n"), std::string(""));
 	
 	return leftAndRightTrimmed;
 }
