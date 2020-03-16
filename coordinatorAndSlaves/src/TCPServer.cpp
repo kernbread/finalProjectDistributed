@@ -124,7 +124,7 @@ void TCPServer::listenSvr() {
 				mainServerThread.detach(); // make thread a daemon
 				log("INFO: connected with main server at " + ipAddrStr);
 				mainServerAlive = true;
-			} else { // assume this is a slave node...
+			} else { // assume this is a slave node... (should ip address = 127.0.0.2)
 				// start slave node thread
 				std::thread clientThread(&TCPServer::clientThread, this, connection, ipAddrStr);
 				clientThread.detach(); // make thread a daemon
@@ -495,11 +495,15 @@ void TCPServer::jmd() {
 				jobsMutex.lock();
 				std::get<0>(job) = -1; // reset back to -1 so it will be reassigned to a slave node that is alive
 				jobsMutex.unlock();
-			} else if (done) { // remove job if it is complete
+			} else if (done) { // remove job if it is complete/cancelled
 				jobsMutex.lock();
 				jobs.erase(std::remove(jobs.begin(), jobs.end(), job));
 				jobsMutex.unlock();
-				log("DEBUG: JMD :: removed job (clientId=" + std::to_string(clientId) + ", numberToFactorize=" + numberToFactorize + ", done=" + std::to_string(done) + ", cancelled=" + std::to_string(cancelled) + ") from jobs. Adding to completed jobs.");
+				if (!cancelled)
+					log("DEBUG: JMD :: removed job (clientId=" + std::to_string(clientId) + ", numberToFactorize=" + numberToFactorize + ", done=" + std::to_string(done) + ", cancelled=" + std::to_string(cancelled) + ") from jobs. Adding to completed jobs.");
+				else
+					log("DEBUG: JMD :: removed job (clientId=" + std::to_string(clientId) + ", numberToFactorize=" + numberToFactorize + ", done=" + std::to_string(done) + ", cancelled=" + std::to_string(cancelled) + ") from jobs since it was cancelled");
+		
 			}
 		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(100)); // sleep thread

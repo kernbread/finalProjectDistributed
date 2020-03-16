@@ -58,9 +58,9 @@ private:
  Logger logger;
  std::mutex m; // lock for PasswdMgr
 
- std::string mainServerIpAddress = "127.0.0.2"; // IP address of main server
+ std::string mainServerIpAddress = "127.0.0.1"; // IP address of main server
  int mainServerConnId = -1; // connection ID to main server
- bool mainServerAlive = true;
+ bool mainServerAlive = false;
 
  int numberOfJobsPerClientReq = 2; // number of jobs for each client request (TODO: need to change this to be based on the number of slave nodes!!!)
 
@@ -74,6 +74,7 @@ private:
 
  // utility functions
  std::vector<int> getAvailableSlaveNodeIds(); // returns slave node id's not currently assigned a job
+
  void markSlaveConnAsDead(int connId); // when we lose connection with a slave node, call this method
  bool checkIfJobCancelled(int inSlaveNodeId); // checks whether a job assigned to a slave node is cannceled 
  void setJobToDone(int inSlaveNodeId); // sets a job with slaveNodeId to done
